@@ -37,7 +37,20 @@
 #include "vty.h"
 #include "command.h"
 
-#ifdef HAVE_MALLINFO
+#ifdef HAVE_JEMALLOC
+#include "jemalloc/jemalloc.h"
+void vty_malloc_stats_print(void *opaque, const char *buf)
+{
+	struct vty *vty = (struct vty*)opaque;
+	vty_out(vty, buf);
+}
+
+static int show_memory_jemalloc(struct vty *vty)
+{
+	malloc_stats_print(vty_malloc_stats_print, vty, NULL);
+	return 1;
+}
+#elif defined HAVE_MALLINFO
 static int show_memory_mallinfo(struct vty *vty)
 {
 	struct mallinfo minfo = mallinfo();
@@ -94,7 +107,9 @@ DEFUN (show_memory,
        "Show running system information\n"
        "Memory statistics\n")
 {
-#ifdef HAVE_MALLINFO
+#ifdef HAVE_JEMALLOC
+	show_memory_jemalloc(vty);
+#elif defined HAVE_MALLINFO
 	show_memory_mallinfo(vty);
 #endif /* HAVE_MALLINFO */
 

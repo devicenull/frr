@@ -396,6 +396,8 @@ AC_ARG_ENABLE(rpki,
   AS_HELP_STRING([--enable-rpki], [enable RPKI prefix validation support]))
 AC_ARG_ENABLE([clippy-only],
   AS_HELP_STRING([--enable-clippy-only], [Only build clippy]))
+AC_ARG_WITH(jemalloc,
+  AS_HELP_STRING([--with-jemalloc], [use jemalloc instead of malloc]))
 
 AS_IF([test "${enable_clippy_only}" != "yes"], [
 AC_CHECK_HEADERS(json-c/json.h)
@@ -638,7 +640,7 @@ case "${enable_multipath}" in
     ;;
   "")
     ;;
-  *)           
+  *)
     AC_MSG_FAILURE([Please specify digit to enable multipath ARG])
     ;;
 esac
@@ -935,7 +937,7 @@ dnl	 [TODO] on Linux, and in [TODO] on Solaris.
 	 AC_CHECK_LIB(termcap, tputs, LIBREADLINE="$LIBREADLINE -ltermcap",
 	   [AC_CHECK_LIB(tinfo, tputs, LIBREADLINE="$LIBREADLINE -ltinfo",
 	     [AC_CHECK_LIB(curses, tputs, LIBREADLINE="$LIBREADLINE -lcurses",
-	       [AC_CHECK_LIB(ncurses, tputs, 
+	       [AC_CHECK_LIB(ncurses, tputs,
 	                     LIBREADLINE="$LIBREADLINE -lncurses")]
 	      )]
 	    )]
@@ -949,7 +951,7 @@ dnl	 [TODO] on Linux, and in [TODO] on Solaris.
 	 if test $ac_cv_header_readline_history_h = no;then
            AC_MSG_ERROR([readline is too old to have readline/history.h, please update to the latest readline library.])
 	 fi
-	 AC_CHECK_LIB(readline, rl_completion_matches, 
+	 AC_CHECK_LIB(readline, rl_completion_matches,
 	              LIBREADLINE="$LIBREADLINE",, "$LIBREADLINE")
          if test $ac_cv_lib_readline_rl_completion_matches = no; then
            AC_DEFINE(rl_completion_matches,completion_matches,Old readline)
@@ -1208,7 +1210,7 @@ AC_CHECK_HEADER( [net/if_media.h],
   ])
   AC_CHECK_MEMBERS( [struct ifmediareq.ifm_status],
     AC_DEFINE(HAVE_BSD_LINK_DETECT,,[BSD link-detect]),
-    [], LINK_DETECT_INCLUDES)], 
+    [], LINK_DETECT_INCLUDES)],
   [],
   FRR_INCLUDES)
 
@@ -1224,7 +1226,7 @@ dnl ------------------------
 dnl TCP_MD5SIG socket option
 dnl ------------------------
 
-AC_CHECK_HEADER([netinet/tcp.h], 
+AC_CHECK_HEADER([netinet/tcp.h],
    [m4_define([MD5_INCLUDES],
       FRR_INCLUDES
       [#include <netinet/tcp.h>
@@ -1361,7 +1363,7 @@ else
   LIBRFP=
   RFPINC="bgpd/rfp-example/librfp"
 fi
-# set 
+# set
 AM_CONDITIONAL([ENABLE_BGP_VNC], [test x${enable_bgp_vnc} != xno])
 
 AC_SUBST(DOC)
@@ -1687,7 +1689,7 @@ if test "${enable_capabilities}" != "no"; then
     AC_CHECK_HEADERS(sys/capability.h)
   fi
   if test x"${ac_cv_header_sys_capability_h}" = x"yes"; then
-    AC_CHECK_LIB(cap, cap_init, 
+    AC_CHECK_LIB(cap, cap_init,
       [AC_DEFINE(HAVE_LCAPS,1,Capabilities)
        LIBCAP="-lcap"
        frr_ac_lcaps="yes"]
@@ -1713,7 +1715,7 @@ AC_SUBST(LIBCAP)
 
 dnl ---------------------------
 dnl check for glibc 'backtrace'
-dnl --------------------------- 
+dnl ---------------------------
 if test x"${enable_backtrace}" != x"no" ; then
   backtrace_ok=no
   AC_CHECK_HEADER([execinfo.h], [
@@ -1933,6 +1935,20 @@ AS_IF([test "x$with_pkg_git_version" = "xyes"], [
 	PERL="$PERL"
     ])
 ])
+
+dnl ------------------------------------
+dnl Enable jemalloc as a malloc replacement
+dnl ------------------------------------
+if test "${with_jemalloc}" = "yes"; then
+AC_CHECK_LIB([jemalloc],[malloc_conf],
+  [LIBS="-ljemalloc $LIBS"],
+  [AC_MSG_ERROR([No jemalloc library found])])
+AC_DEFINE(HAVE_JEMALLOC,,Use jemalloc)
+  AC_SUBST(RPM_JEMALLOC, 1)
+else
+  AC_SUBST(RPM_JEMALLOC, 0)
+fi
+
 
 ## Hack, but working solution to avoid rebuilding of frr.info.
 ## It's already in CVS until texinfo 4.7 is more common.
